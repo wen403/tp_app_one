@@ -9,5 +9,4 @@ return [
     // \think\middleware\LoadLangPack::class,
     // Session初始化
     SessionInit::class,
-    \app\middleware\Auth::class,
 ];
