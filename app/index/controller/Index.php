@@ -8,7 +8,14 @@ class Index extends BaseController
 {
     public function index()
     {
-        return 'tp1主页面用户' . session('user.username');
+        return view();
+    }
+
+    public function logout()
+    {
+        session(null);
+
+        return json(['code' => 200, 'msg' => '登出成功！', 'url' => config('sso.domain') . '/sso/login/logout?url=' . config('sso.login_url')]);
     }
 
 }
