@@ -2,6 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="ie=edge" http-equiv="X-UA-Compatible">
+    <meta content="The ultimate Bootstrap based Messaging framework to help build Messaging or Chat application fast and easy. Fully responsive and crafted with modern elements and latest design"
+          name="description">
+    <meta content="Chatriq, chat, messaging, theme, platform" name="keywords"/>
+    <meta content="" name="subject">
+    <meta content="" name="copyright">
     <title>{block name="title"}标题{/block}</title>
     {block name="link"}{/block}
     <link href="/static/lib/pjax/nprogress.min.css" rel="stylesheet">
@@ -15,6 +22,7 @@
 {block name="body"}{/block}
 
 <script>
+    const ws = new WebSocket("ws://127.0.0.1:2348")
     $(function () {
         // pjax 进度条
         $(document).on('pjax:start', function () {
@@ -28,7 +36,117 @@
         }).ajaxStop(function () {
             NProgress.done();
         })
+        // 初始化gateway
+        if ("{:session('?user')}") {
+            gatewayWorkerInit();
+        }
+        setCurrentUrl();
     });
+
+    function logout() {
+        notify.loading("登出中");
+        $.ajax({
+            url: "index/login/logout",
+            type: "post",
+            dataType: "json",
+            success: function (res) {
+                notify.destroyAll();
+                if (res.code === 200) {
+                    window.location.href = res.url;
+                } else {
+                    notify.error(res.msg);
+                }
+            }
+        });
+    }
+
+    function gatewayWorkerInit() {
+        ws.onopen = function () {
+            console.log('连接成功...')
+        }
+
+        ws.onmessage = function (e) {
+            let data = JSON.parse(e.data)
+            switch (data.type) {
+                case "ping":
+                    ws.send(JSON.stringify(data));
+                    break;
+                case "signOut":
+                    notify.warning("您已在其他地方登录！", logout);
+                    break;
+                case "connect":
+                    // 登陆
+                    ws.send(JSON.stringify({
+                        "type": "login",
+                        "uid": "{:session('user.id')}",
+                    }));
+                    setInterval(function () {
+                        ws.send(JSON.stringify({"type": "ping"}));
+                    }, 10000);
+                    break;
+                case "msg_text":
+                    let received = `<li class="message received">
+                                    <div class="user-avatar user-avatar-rounded" style="margin-right: 15px;justify-content: space-around;flex-direction: column-reverse" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <img src="/static/img/user/50/1.png">
+                                    </div>
+                                    <div class="message__text">${data.data}
+                                        <div class="metadata"><span class="time">${data.time}</span></div>
+                                    </div>
+                                    <div class="message__options"><i class=" mdi mdi-dots-horizontal"></i>
+                                    </div>
+                                </li>`
+
+                    $(".chat-style-2").append(received);
+                    break;
+                case "msg_count":
+                    $(".conversation__message-preview").text(data.data);
+                    $(".conversation__time").eq(0).text(data.time);
+                    $(".conversation__time").eq(1).text("last seen at " + data.time);
+                    break;
+                case "count":
+                    $("#openPage").text(data.openPage);
+                    $("#onlineUsers").text(data.onlineUsers);
+                    break;
+            }
+            console.log(JSON.parse(e.data))
+        }
+
+        ws.onclose = function () {
+            console.log('连接关闭...')
+        }
+    }
+
+    /**
+     * 设置当前url
+     */
+    function setCurrentUrl() {
+        if (!!(window.history && history.pushState)) {
+            // 支持History API
+            let urls = window.location.search.slice(1).split("=");
+            if (urls[0] === "token") {
+                let state = {title: '', url: window.location.href.split("?")[0]};
+                history.pushState(state, '', '/');
+            }
+        }
+    }
+
+    function getTime() {
+        let now = new Date;
+        let h = now.getHours();
+        let mm = now.getMinutes();
+        let str;
+        if (h > 12) {
+            h -= 12;
+            str = " PM";
+        } else {
+            str = " AM";
+        }
+        h = h < 10 ? "0" + h : h;
+        mm = mm < 10 ? "0" + mm : mm;
+        let xy = h + ":" + mm;
+        xy += str;
+        return xy;
+    }
 </script>
 {block name="script"}{/block}
 </html>

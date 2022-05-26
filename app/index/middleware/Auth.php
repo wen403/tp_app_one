@@ -5,7 +5,6 @@ namespace app\index\middleware;
 
 use app\Request;
 use Closure;
-use think\Exception;
 
 class Auth
 {
@@ -36,6 +35,9 @@ class Auth
             return $next($request);
         }
 
+        // 本机登录地址
+        $loginUrl = config('sso.login_url');
+
         // 携带了 token
         if (!empty($param['token'])) {
             $result = rpcClient('Login')->validateToken($param['token']);
@@ -46,14 +48,11 @@ class Auth
                     'username' => $result['data']['username'],
                     'token'    => $result['data']['token'],
                 ]);
-                return redirect('/');
+                return $next($request);
             } else {
-                throw new Exception('token 验证失败');
+                return redirect($loginUrl);
             }
         }
-
-        // 本机登录地址
-        $loginUrl = config('sso.login_url');
 
         // 登录页面放行
         if ($request->domain() . $request->url() === $loginUrl && (request()->method() === 'POST' || session('?sso'))) {
